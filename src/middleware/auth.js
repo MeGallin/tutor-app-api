@@ -14,6 +14,15 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     try {
+      // Check if token is blacklisted
+      const blacklistedToken = await db.BlacklistedToken.findOne({
+        where: { token },
+      });
+
+      if (blacklistedToken) {
+        throw new APIError('Token has been revoked', 401);
+      }
+
       const decoded = jwt.verify(token, config.jwtSecret);
       req.user = decoded;
 

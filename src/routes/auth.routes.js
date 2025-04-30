@@ -1,5 +1,10 @@
 import express from 'express';
-import { register, login, getProfile } from '../controllers/auth.controller.js';
+import {
+  register,
+  login,
+  getProfile,
+  logout,
+} from '../controllers/auth.controller.js';
 import { verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -73,6 +78,22 @@ router.post(
  *         description: Invalid credentials
  */
 router.post('/login', login);
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout and invalidate the current token
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully logged out
+ *       401:
+ *         description: Not authenticated
+ */
+router.post('/logout', verifyToken, logout);
 
 /**
  * @swagger

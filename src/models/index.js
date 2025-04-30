@@ -32,6 +32,32 @@ db.User = (await import('./user.model.js')).default(
   Sequelize.DataTypes,
 );
 
+// Add model for tracking blacklisted (invalidated) tokens
+db.BlacklistedToken = sequelize.define('BlacklistedToken', {
+  id: {
+    type: Sequelize.DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  token: {
+    type: Sequelize.DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+  userId: {
+    type: Sequelize.DataTypes.INTEGER,
+    allowNull: false,
+  },
+  expiresAt: {
+    type: Sequelize.DataTypes.DATE,
+    allowNull: false,
+  },
+  createdAt: {
+    type: Sequelize.DataTypes.DATE,
+    defaultValue: Sequelize.NOW,
+  },
+});
+
 // Add model for storing tutor conversations
 db.TutorSession = sequelize.define('TutorSession', {
   id: {
@@ -98,5 +124,12 @@ db.TutorSession.hasMany(db.Message, {
   onDelete: 'CASCADE',
 });
 db.Message.belongsTo(db.TutorSession, { foreignKey: 'sessionId' });
+
+// Relationship for BlacklistedToken
+db.User.hasMany(db.BlacklistedToken, {
+  foreignKey: 'userId',
+  onDelete: 'CASCADE',
+});
+db.BlacklistedToken.belongsTo(db.User, { foreignKey: 'userId' });
 
 export default db;
