@@ -6,8 +6,11 @@
 import db from '../models/index.js';
 import { APIError } from '../middleware/error.js';
 import logger from '../utils/logger.js';
+import jwt from 'jsonwebtoken';
+import config from '../config/config.js';
 
 const User = db.User;
+const BlacklistedToken = db.BlacklistedToken;
 
 /**
  * Register a new user
@@ -166,4 +169,55 @@ const getProfile = async (req, res, next) => {
   }
 };
 
-export { register, login, getProfile };
+/**
+ * Log out a user by invalidating their token
+ * @async
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const logout = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new APIError('No token provided', 400);
+    }
+
+    const token = authHeader.split(' ')[1];
+    const userId = req.user.id;
+
+    try {
+      // Decode token to get expiration time
+      const decoded = jwt.verify(token, config.jwtSecret);
+
+      // Add token to blacklist
+      await BlacklistedToken.create({
+        token,
+        userId,
+        expiresAt: new Date(decoded.exp * 1000), // Convert Unix timestamp to Date
+      });
+
+      logger.info(`User logged out: ID ${userId}`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Logged out successfully',
+      });
+    } catch (err) {
+      // If token is invalid, still return success since user will be logged out
+      logger.warn(
+        `Invalid token during logout for user ID: ${userId}, Error: ${err.message}`,
+      );
+      res.status(200).json({
+        success: true,
+        message: 'Logged out successfully',
+      });
+    }
+  } catch (error) {
+    logger.error(`Logout error: ${error.message}`);
+    next(error);
+  }
+};
+
+export { register, login, getProfile, logout };
