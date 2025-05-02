@@ -31,6 +31,7 @@ const config = {
   corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN) || [
     'http://localhost:8000',
     'http://localhost:5173',
+    'https://tutor.livenotice.co.uk'
   ],
 };
 
