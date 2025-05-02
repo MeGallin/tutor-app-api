@@ -6,8 +6,34 @@
 import config from '../config/config.js';
 import logger from '../utils/logger.js';
 import openAIService from './openai.service.js';
+import agentFlowService from './langchain/agent-flow.service.js';
+import sqliteMemoryService from './langchain/sqlite-memory.service.js';
+import stateManagerService from './langchain/state-manager.service.js';
 
 class AgentService {
+  constructor() {
+    // Initialize the SQLite memory service
+    this.initializeMemoryService();
+  }
+
+  /**
+   * Initialize the SQLite memory service
+   *
+   * @async
+   * @private
+   */
+  async initializeMemoryService() {
+    try {
+      await sqliteMemoryService.initialize();
+      logger.info('SQLiteAgentMemory service initialized');
+    } catch (error) {
+      logger.error(
+        `Error initializing SQLiteAgentMemory service: ${error.message}`,
+      );
+      logger.warn('Falling back to non-persistent memory');
+    }
+  }
+
   /**
    * Process a message using the TutorV0.5 Agent flow
    *
@@ -20,40 +46,56 @@ class AgentService {
    */
   async processMessage(userMessage, tutorSession, messageHistory) {
     try {
-      // Create agent state based on the TutorV0.5 Agents.json flow
-      const agentState = {
-        subject: tutorSession.subject || 'various subjects',
-        name: 'AI Tutor',
-      };
+      // Check if LangChain implementation should be used
+      if (config.features?.useLangChain === true) {
+        // Use the LangGraph implementation
+        logger.info(
+          `Processing message with LangChain/LangGraph for session ${tutorSession.id}`,
+        );
 
-      logger.info(
-        `Processing message for session ${
-          tutorSession.id
-        } with agent state: ${JSON.stringify(agentState)}`,
-      );
+        const response = await agentFlowService.executeAgentFlow(
+          userMessage,
+          tutorSession,
+          messageHistory,
+        );
 
-      // Generate a system message that incorporates the agent state
-      const systemMessage = `You are a friendly assistant called ${agentState.name} who can answer basic questions on ${agentState.subject}`;
+        return response;
+      } else {
+        // Create agent state based on the TutorV0.5 Agents.json flow
+        const agentState = {
+          subject: tutorSession.subject || 'various subjects',
+          name: 'AI Tutor',
+        };
 
-      // Prepare the conversation history for the OpenAI service
-      const formattedHistory = this._formatConversationHistory(
-        messageHistory,
-        systemMessage,
-      );
+        logger.info(
+          `Processing message for session ${
+            tutorSession.id
+          } with agent state: ${JSON.stringify(agentState)}`,
+        );
 
-      // Get response from OpenAI
-      const response = await openAIService.generateTutorResponse(
-        userMessage,
-        tutorSession,
-        formattedHistory,
-      );
+        // Generate a system message that incorporates the agent state
+        const systemMessage = `You are a friendly assistant called ${agentState.name} who can answer basic questions on ${agentState.subject}`;
 
-      // Return response with metadata
-      return {
-        content: response,
-        agentState,
-        timestamp: new Date().toISOString(),
-      };
+        // Prepare the conversation history for the OpenAI service
+        const formattedHistory = this._formatConversationHistory(
+          messageHistory,
+          systemMessage,
+        );
+
+        // Get response from OpenAI
+        const response = await openAIService.generateTutorResponse(
+          userMessage,
+          tutorSession,
+          formattedHistory,
+        );
+
+        // Return response with metadata
+        return {
+          content: response,
+          agentState,
+          timestamp: new Date().toISOString(),
+        };
+      }
     } catch (error) {
       logger.error(
         `Error processing message through agent flow: ${error.message}`,
@@ -102,20 +144,48 @@ class AgentService {
    * @returns {Object} - Initial agent state
    */
   initializeSessionState(tutorSession) {
-    // Set initial agent state based on TutorV0.5 Agents.json
-    const initialState = {
-      subject: tutorSession.subject || 'various subjects',
-      name: 'AI Tutor',
-      created: new Date().toISOString(),
-    };
+    // Check if LangChain implementation should be used
+    if (config.features?.useLangChain === true) {
+      // Create a state manager using LangGraph
+      logger.info(
+        `Initializing state manager for session ${tutorSession.id} with LangChain/LangGraph`,
+      );
 
-    logger.info(
-      `Initialized agent state for session ${tutorSession.id}: ${JSON.stringify(
-        initialState,
-      )}`,
-    );
+      const initialState = {
+        subject: tutorSession.subject || 'various subjects',
+        name: 'AI Tutor',
+        messages: [],
+        sessionId: tutorSession.id,
+        created: new Date().toISOString(),
+      };
 
-    return initialState;
+      // Create a StateManager instance
+      const stateManager = stateManagerService.createStateManager(initialState);
+
+      // Save initial state checkpoint
+      sqliteMemoryService
+        .saveCheckpoint(tutorSession.id, initialState)
+        .catch((err) =>
+          logger.error(`Failed to save initial checkpoint: ${err.message}`),
+        );
+
+      return initialState;
+    } else {
+      // Set initial agent state based on TutorV0.5 Agents.json
+      const initialState = {
+        subject: tutorSession.subject || 'various subjects',
+        name: 'AI Tutor',
+        created: new Date().toISOString(),
+      };
+
+      logger.info(
+        `Initialized agent state for session ${
+          tutorSession.id
+        }: ${JSON.stringify(initialState)}`,
+      );
+
+      return initialState;
+    }
   }
 }
 

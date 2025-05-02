@@ -8,6 +8,7 @@ import { APIError } from '../middleware/error.js';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
 import agentService from '../services/agent.service.js';
+import tutorAgentService from '../services/tutor-agent.service.js';
 
 const TutorSession = db.TutorSession;
 const Message = db.Message;
@@ -196,8 +197,9 @@ const sendMessage = async (req, res, next) => {
     const messageHistory = session.Messages || [];
 
     try {
-      // Process message through the agent service
-      const agentResponse = await agentService.processMessage(
+      // Process message through the tutor agent service facade
+      // This will route to either LangChain or direct OpenAI implementation based on config
+      const agentResponse = await tutorAgentService.processMessage(
         content,
         session,
         messageHistory,
@@ -210,8 +212,8 @@ const sendMessage = async (req, res, next) => {
         role: 'assistant',
         metadata: {
           model: config.openAI.defaultModel,
-          agentState: agentResponse.agentState,
-          timestamp: agentResponse.timestamp || new Date().toISOString(),
+          implementation: agentResponse.metadata?.implementation || 'direct',
+          ...agentResponse.metadata,
         },
       });
 
@@ -283,6 +285,9 @@ const endSession = async (req, res, next) => {
     if (session.endedAt) {
       throw new APIError('Session is already ended', 400);
     }
+
+    // Clean up resources in the tutor agent service
+    await tutorAgentService.endSession(id);
 
     session.endedAt = new Date();
     await session.save();

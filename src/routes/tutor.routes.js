@@ -6,9 +6,13 @@ import {
   sendMessage,
   endSession,
 } from '../controllers/tutor.controller.js';
+import { testLangchainAgent } from '../controllers/test.controller.js';
 import { verifyToken, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Test route for LangChain that doesn't require authentication
+router.post('/test/langchain', testLangchainAgent);
 
 // All routes require authentication
 router.use(verifyToken);
