@@ -116,7 +116,7 @@ import agentFlowService from './services/langchain/agent-flow.service.js';
 const session = {
   id: 'session_123',
   subject: 'mathematics',
-  name: 'Math Tutor',
+  name: 'Math Tutor Test',
 };
 
 // Process a message
