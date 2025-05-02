@@ -23,7 +23,6 @@
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "langchain": "^0.1.x",
-    "langgraph": "^0.0.x",
     "morgan": "^1.10.0",
     "sequelize": "^6.37.7",
     "sqlite-async": "^1.x",
