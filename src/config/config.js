@@ -8,6 +8,14 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Parse comma-separated CORS origins into an array
+const parseCorsOrigins = (origins) => {
+  if (!origins) return 'http://localhost:8000';
+  return origins.includes(',')
+    ? origins.split(',').map((o) => o.trim())
+    : origins;
+};
+
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 8000,
@@ -20,7 +28,10 @@ const config = {
     defaultModel: process.env.OPENAI_DEFAULT_MODEL || 'gpt-4o-mini',
   },
   logLevel: process.env.LOG_LEVEL || 'info',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN) || [
+    'http://localhost:8000',
+    'http://localhost:5173',
+  ],
 };
 
 export default config;
