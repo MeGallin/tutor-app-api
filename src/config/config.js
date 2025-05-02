@@ -31,8 +31,17 @@ const config = {
   corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN) || [
     'http://localhost:8000',
     'http://localhost:5173',
-    'https://tutor.livenotice.co.uk'
+    'https://tutor.livenotice.co.uk',
   ],
+  // Database configuration for SQLite memory service
+  database: {
+    path:
+      process.env.DB_PATH || path.join(__dirname, '../../data/tutor.sqlite'),
+  },
+  // Feature flags
+  features: {
+    useLangChain: process.env.USE_LANGCHAIN === 'true' || false,
+  },
 };
 
 export default config;
